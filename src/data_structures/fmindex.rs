@@ -60,7 +60,7 @@ use std::iter::DoubleEndedIterator;
 
 use data_structures::bwt::{BWT, DerefBWT, DerefOcc, DerefLess};
 use data_structures::suffix_array::SuffixArray;
-use alphabets::dna;
+use alphabets::{dna, RankTransform};
 use std::mem::swap;
 
 /// A suffix array interval.
@@ -150,6 +150,7 @@ pub struct FMIndex<
     bwt: DBWT,
     less: DLess,
     occ: DOcc,
+    ranktransform: RankTransform,
 }
 
 impl<
@@ -182,12 +183,13 @@ impl<
     /// * `bwt` - the BWT
     /// * `k` - the sampling rate of the occ array: every k-th entry will be stored (higher k means
     ///   less memory usage, but worse performance)
-    /// * `alphabet` - the alphabet of the underlying text, omitting the sentinel
-    pub fn new(bwt: DBWT, less: DLess, occ: DOcc) -> Self {
+    /// * `alphabet` - the alphabet of the underlying text, including the sentinel
+    pub fn new(bwt: DBWT, less: DLess, occ: DOcc, ranktransform: RankTransform) -> Self {
         FMIndex {
             bwt: bwt,
             less: less,
             occ: occ,
+            ranktransform: ranktransform,
         }
     }
 }
@@ -269,11 +271,6 @@ impl<
     /// T1$R1$T2$R2$T3$R3$.
     ///
     fn from(fmindex: FMIndex<DBWT, DLess, DOcc>) -> FMDIndex<DBWT, DLess, DOcc> {
-        let mut alphabet = dna::n_alphabet();
-        alphabet.insert(b'$');
-        assert!(alphabet.is_word(fmindex.bwt()),
-                "Expecting BWT over the DNA alphabet (including N) with the sentinel $.");
-
         FMDIndex {
             fmindex: fmindex,
         }
@@ -347,7 +344,7 @@ impl<
 
         for k in (-1..i as isize).rev() {
             let a = if k == -1 {
-                b'$'
+                self.fmindex.ranktransform.get(b'$')
             } else {
                 pattern[k as usize]
             };
@@ -384,7 +381,7 @@ impl<
 
     /// Initialize interval with given start character.
     pub fn init_interval(&self, a: u8) -> BiInterval {
-        let comp_a = dna::complement(a);
+        let comp_a = self.fmindex.ranktransform.complement(a);
         let lower = self.fmindex.less(a);
 
         BiInterval {
@@ -405,7 +402,8 @@ impl<
         // then c(T) = A, c(G) = C, c(C) = G, N, c(A) = T, ...
         // Hence, we calculate lower revcomp bounds by iterating over
         // symbols and updating from previous one.
-        for &b in b"$TGCNAtgcna".iter() {
+        for &b in b"$TGCNA".iter() {
+            let b = self.fmindex.ranktransform.get(b);
             l += s;
             o = self.fmindex.occ(interval.lower - 1, b);
             // calculate size
@@ -427,10 +425,14 @@ impl<
 
 
     pub fn forward_ext(&self, interval: &BiInterval, a: u8) -> BiInterval {
-        let comp_a = dna::complement(a);
+        let comp_a = self.fmindex.ranktransform.complement(a);
 
         self.backward_ext(&interval.swapped(), comp_a)
             .swapped()
+    }
+
+    pub fn smems_transform(&self, pattern: &[u8], i: usize) -> Vec<BiInterval> {
+      self.smems(&self.fmindex.ranktransform.transform(pattern), i)
     }
 }
 

@@ -73,6 +73,7 @@ impl Alphabet {
 #[cfg_attr(feature = "serde_macros", derive(Serialize, Deserialize))]
 pub struct RankTransform {
     pub ranks: SymbolRanks,
+    complement: SymbolRanks,
 }
 
 
@@ -83,13 +84,22 @@ impl RankTransform {
         for (r, c) in alphabet.symbols.iter().enumerate() {
             ranks.insert(c, r as u8);
         }
+        let mut complement = VecMap::new();
+        for (r, c) in alphabet.symbols.iter().enumerate() {
+            complement.insert(ranks[dna::complement(c as u8) as usize] as usize, r as u8);
+        }
 
-        RankTransform { ranks: ranks }
+        RankTransform { ranks: ranks, complement: complement }
     }
 
     /// Get the rank of symbol `a`.
     pub fn get(&self, a: u8) -> u8 {
         *self.ranks.get(a as usize).expect("Unexpected character.")
+    }
+
+    /// Get the rank of the complement of symbol `a`.
+    pub fn complement(&self, a: u8) -> u8 {
+        *self.complement.get(a as usize).expect("Unexpected character.")
     }
 
     /// Transform a given `text`.
