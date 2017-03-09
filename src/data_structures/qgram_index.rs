@@ -61,7 +61,7 @@ impl QGramIndex {
     pub fn with_max_count(q: u32, text: &[u8], alphabet: &Alphabet, max_count: usize) -> Self {
         let ranks = RankTransform::new(alphabet);
 
-        let qgram_count = alphabet.len().pow(q as u32);
+        let qgram_count = 2usize.pow((alphabet.len() as f32).log2().ceil() as u32 * q as u32);
         let mut address = vec![0; qgram_count + 1];
         let mut pos = vec![0; text.len()];
 
