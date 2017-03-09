@@ -25,11 +25,6 @@ pub fn alphabet() -> Alphabet {
     Alphabet::new(b"ACGTacgt")
 }
 
-/// The DNA alphabet (uppercase only).
-pub fn n_alphabet_upper() -> Alphabet {
-    Alphabet::new(b"ACGTN")
-}
-
 
 /// The DNA alphabet including N (uppercase and lowercase).
 pub fn n_alphabet() -> Alphabet {
